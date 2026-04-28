@@ -43,6 +43,3 @@ app.listen(PORT, () => {
 
 export default app;
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port: ${PORT}...`);
-});
