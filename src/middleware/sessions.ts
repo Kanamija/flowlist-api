@@ -1,3 +1,6 @@
+// NOTE: not imported anywhere yet. Used in v2 when auth routes are added.
+// See FlowList-MVP-Planning.docx for the staged plan.
+
 import { Request, Response, NextFunction } from 'express';
 import db from '../config/db.ts';
 
@@ -22,7 +25,7 @@ export async function requireSession(req: Request, res: Response, next: NextFunc
             sessions.id AS session_id,
             sessions.expires_at AS session_expires_at,
             users.id AS user_id,
-            users.email As user_email,
+            users.email AS user_email,
             users.role AS user_role,
             users.created_at AS user_created_at
         FROM sessions
@@ -45,7 +48,7 @@ export async function requireSession(req: Request, res: Response, next: NextFunc
         role: row.user_role,
         created_at: row.user_created_at,
     };
-    res.locals.sessionId = row.sessions_id;
+    res.locals.sessionId = row.session_id;
 
     return next()
 } catch (error) {

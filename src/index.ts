@@ -22,6 +22,19 @@ app.get('/api/health', async (req, res, next) => {
   }
 });
 
+// GET /api/classes — list all class events with their template name
+
+app.get('/api/classes', async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `SELECT * FROM class_events 
+        ORDER BY starts_at ASC`
+    );
+    return res.status(200).json({ classes: result.rows });
+  } catch (error) {
+    return next(error)
+  }
+});
 
 // catch-all 404
 app.use((req, res) => res.status(404).send('This is not the page you\'re looking for...'));
