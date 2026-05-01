@@ -27,8 +27,21 @@ app.get('/api/health', async (req, res, next) => {
 app.get('/api/classes', async (req, res, next) => {
   try {
     const result = await db.query(
-      `SELECT * FROM class_events 
-        ORDER BY starts_at ASC`
+    `SELECT 
+        ce.id,
+        ce.starts_at,
+        ce.duration_minutes,
+        ce.instructor,
+        ce.max_capacity,
+        ce.spots_remaining,
+        ce.is_cancelled,
+        ct.name,
+        ct.description
+    FROM class_events ce
+    JOIN class_templates ct ON ce.template_id = ct.id
+    WHERE ce.starts_at > NOW()
+    AND ce.is_cancelled = false
+    ORDER BY ce.starts_at ASC`
     );
     return res.status(200).json({ classes: result.rows });
   } catch (error) {
