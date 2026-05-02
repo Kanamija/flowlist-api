@@ -54,22 +54,23 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 
 ### Frontend (`flowlist-client`)
 
-- [ ] Add a `server.proxy` block to `vite.config.ts` so `/api/*` requests forward to `http://localhost:3000`
-- [ ] Replace the default Vite content in `src/App.tsx`
-- [ ] Define a `ClassEvent` TypeScript type that matches the API response shape
-- [ ] Fetch `GET /api/classes` from the schedule page on mount
-- [ ] Render each class with name, instructor, start time in the local zone, duration
-- [ ] Add a loading state while the fetch is in flight
-- [ ] Add an error state for network or 5xx responses
-- [ ] Add an empty state for "no upcoming classes"
-- [ ] Sort classes by `starts_at` ascending
+- [x] Add a `server.proxy` block to `vite.config.ts` so `/api/*` requests forward to `http://localhost:3000`
+- [x] Replace the default Vite content in `src/App.tsx`
+- [x] Define a `ClassEvent` TypeScript type that matches the API response shape
+- [x] Fetch `GET /api/classes` from the schedule page on mount
+- [x] Render each class with name, instructor, start time in the local zone, duration
+- [x] Add a loading state while the fetch is in flight
+- [x] Add an error state for network or 5xx responses
+- [x] Add an empty state for "no upcoming classes"
+- [x] Sort classes by `starts_at` ascending
+- [x] Add a simple v1 presentation pass with FlowList branding and class-card styling
 
 ### Demo v1
 
-- [ ] Run `npm run dev` in both repos at the same time
-- [ ] Open the React app in a browser
-- [ ] Confirm real classes appear, with correct local-zone times
-- [ ] **STOP. Do not start v2 until this checks pass.**
+- [x] Run `npm run dev` in both repos at the same time
+- [x] Open the React app in a browser
+- [x] Confirm real classes appear, with correct local-zone times
+- [x] **STOP. v1 passed; v2 may begin next.**
 
 ---
 
