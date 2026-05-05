@@ -78,6 +78,20 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 
 **Definition of done:** register through the React UI, refresh the page and stay logged in, log out and watch the indicator update.
 
+**Working agreement:** v2 is a learning-first pass. Go ultra slow, one small concept at a time. Before each code change, explain the problem, the file being touched, the exact code being added, why each non-obvious line exists, and how to test it before moving on. If only v2 gets done but it can be explained clearly, that is a win.
+
+### v2 learning path
+
+- [ ] Wire `cookie-parser` into `src/index.ts` and explain middleware order
+- [ ] Create `src/routes/auth.ts` with a tiny route first, before adding password/session logic
+- [ ] Mount the auth router at `/api/auth` and explain route prefixes
+- [ ] Build `POST /api/auth/register` slowly: validate input, hash password, insert user, create session, set `sid` cookie
+- [ ] Add `GET /api/auth/me` with `requireSession` and explain cookies → sessions → `res.locals.user`
+- [ ] Add `POST /api/auth/login` and explain password comparison
+- [ ] Add `POST /api/auth/logout` and explain deleting server-side sessions plus clearing the browser cookie
+- [ ] Verify each backend route in Postman before touching the frontend
+- [ ] Add frontend auth UI only after the backend auth loop is understandable
+
 ### Backend setup
 
 - [ ] Wire up `src/middleware/sessions.ts` in `src/index.ts` (it's currently dormant)
@@ -89,7 +103,7 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 - [ ] `POST /api/auth/login` — verify password, create session row, set `sid` cookie
 - [ ] `POST /api/auth/logout` — delete session row, clear cookie
 - [ ] `GET /api/auth/me` — return current user from session, or 401 if no session
-- [ ] Update CORS to allow credentials so the cookie travels cross-origin in dev
+- [x] ~~Update CORS to allow credentials~~ — skipped, using the Vite proxy so auth requests stay same-origin in dev
 
 ### Frontend
 

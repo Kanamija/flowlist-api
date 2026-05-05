@@ -1,12 +1,17 @@
 import express from 'express';
 import { Request, Response, NextFunction } from 'express';
 import db from './config/db.ts';
+import cookieParser from 'cookie-parser';
+import authRouter from './routes/auth.ts';
+
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true}));
+app.use(cookieParser());
+app.use('/api/auth', authRouter);
 
 // Health check — tests that the DB connection works
 
@@ -83,9 +88,11 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   return res.status(errorObj.status).json(errorObj.message);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port: ${PORT}...`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server listening on port: ${PORT}...`);
+  });
+}
 
 export default app;
 

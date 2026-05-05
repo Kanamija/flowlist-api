@@ -28,17 +28,29 @@ Kanami is using AI assistants as **teachers and reviewers**, not as code generat
 
 If Kanami explicitly asks "just write it for me," then write it. Otherwise, default to teach mode.
 
+## v2 Learning Pace
+
+Auth is being built as a learning-first pass. Go ultra slow. Before each change, explain:
+
+1. What problem this step solves.
+2. Which file is being touched.
+3. What code is being added or changed.
+4. Why each non-obvious line exists.
+5. How to test this exact step before moving on.
+
+Do not rush ahead to finish v3. If v2 is the only version completed and Kanami can explain cookies, sessions, hashing, middleware, and the auth request flow clearly, the work is successful.
+
 ## Where We Are
 
-The MVP ships in three discrete versions. v1 is in progress.
+The MVP ships in three discrete versions. v1 is complete; v2 auth is starting on the `flowlist-v2` branch.
 
-- **v1 — Public class schedule (no auth)** ← currently here
-- **v2 — Authentication** (register, login, logout, session middleware)
+- **v1 — Public class schedule (no auth)** — complete
+- **v2 — Authentication** (register, login, logout, session middleware) ← currently here
 - **v3 — Bookings** (sign up, cancel, capacity + double-booking rules)
 
-Done so far: TS scaffold, Supabase project + 5 tables, schema migrated (`class_events.starts_at` replaces `date + start_time`), `src/config/db.ts`, `GET /api/health`. Session middleware drafted in `src/middleware/sessions.ts` — **not wired up**, paused until v2. `day2-reference.md` is paused until v2.
+Done so far: TS scaffold, Supabase project + 5 tables, schema migrated (`class_events.starts_at` replaces `date + start_time`), `src/config/db.ts`, `GET /api/health`, `GET /api/classes`, `GET /api/classes/:id`, and a demo-passed v1 schedule in the browser. Session middleware drafted in `src/middleware/sessions.ts` — now ready to be studied and wired during v2.
 
-Next, in order: insert sample rows via the Supabase dashboard → add `GET /api/classes` to `src/index.ts` in the same style as `/api/health` → verify in Postman → switch to client → demo. **Stop after demo. Then v2.**
+Next, in order: explain and wire `cookie-parser` → create and mount a tiny auth router → build register → add `/me` → add login → add logout → verify the full backend auth loop → then switch to the client UI.
 
 ## Coding Conventions
 
@@ -98,7 +110,7 @@ All five tables exist in Supabase as of April 29, 2026:
 - **`spots_remaining` is a race-condition trap.** Don't lean on it as a source of truth in v3 without picking the strategy above first.
 - **Supabase dashboard ≠ admin UI.** The studio owner uses the dashboard directly. Don't add admin endpoints.
 - **Time zones.** `starts_at` is `timestamptz` in UTC. Don't localize on the server.
-- **Sessions are cookies.** When v2 lands, `credentials: 'include'` on the client *and* CORS allowing credentials are both required. A 401 in v2 usually means one of these is missing.
+- **Sessions are cookies.** In local dev, the Vite proxy keeps `/api/*` requests same-origin, so do not add CORS for auth. Keep `credentials: 'include'` on auth-relevant client fetches so the `sid` cookie is sent.
 
 ## Out of Scope (entire MVP)
 
