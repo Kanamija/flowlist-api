@@ -9,9 +9,8 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true}));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use('/api/auth', authRouter);
 
 // Health check — tests that the DB connection works
 
@@ -50,7 +49,7 @@ app.get('/api/classes', async (req, res, next) => {
     );
     return res.status(200).json({ classes: result.rows });
   } catch (error) {
-    return next(error)
+    return next(error);
   }
 });
 
@@ -72,6 +71,8 @@ app.get('/api/classes/:id', async (req, res, next) => {
     return next(error);
   }
 })
+
+app.use('/api/auth', authRouter);
 
 // catch-all 404
 app.use((req, res) => res.status(404).send('This is not the page you\'re looking for...'));
