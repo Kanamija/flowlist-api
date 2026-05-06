@@ -29,6 +29,15 @@ async function createUser(email: string, password: string) {
     return result.rows[0];
   }
 
+async function findUserByEmail(email: string) {
+    const result = await db.query(
+      `SELECT id, email, role, password_hash, created_at
+        FROM users WHERE email = $1`,
+        [email],
+    );
+    return result.rows[0];
+}  
+
 async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000)
   const result = await db.query(
@@ -56,6 +65,35 @@ async function createSession(userId: string) {
       return next(error);
     }
   });
+
+  router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const validated = validateRegistration(req.body);
+      if ('error' in validated) {
+        return res.status(400).json({ error: validated.error });
+      }
+
+      const user =  await findUserByEmail(validated.email);
+      if (!user) {
+        return res.status(401).json({ error: 'invalid credentials' });
+      }
+
+      const isMatch = await bcrypt.compare(validated.password, user.password_hash);
+      if(!isMatch) {
+        return res.status(401).json({ error: 'invalid credentials' })
+      }  
+
+      const sessionId = await createSession(user.id);
+      res.cookie('sid', sessionId, { httpOnly: true });
+
+      const { password_hash, ...userSafe } = user;
+      return res.status(200).json({ user: userSafe });
+
+    } catch (error) {
+      next(error);
+    }
+  });
+
 
 
 router.get('/me', requireSession, (req: Request, res: Response) => {
