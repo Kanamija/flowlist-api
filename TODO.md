@@ -4,161 +4,128 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 
 ## Status
 
-**Today:** Monday, May 4, 2026
+**Today:** Tuesday, May 5, 2026
 **MVP target:** ~Saturday, May 9, 2026
 **Travel:** mid-week, 2–3 working days lost. Plan accordingly — front-load v1 this weekend, push v2 immediately after, save the demo polish for the end of the week.
 
 **The staging rule still wins.** If a v2 task feels tempting before v1 is demo-done in the browser, stop. The whole point of staging is that "almost done" doesn't count.
 
-### End-of-day — Monday, May 4
+### End-of-day — Tuesday, May 5
 
 **Done today:**
-- Wired `cookie-parser` into `src/index.ts`
-- Built `POST /api/auth/register` end-to-end: input validation, `bcrypt` password hashing, user insert, session row insert, `sid` cookie set on response
-- Mounted the auth router at `/api/auth` (correctly placed after the `/api/classes` routes)
-- Added 3 register tests on top of the existing `/me` 401 test: missing fields → 400, invalid email → 400, valid input → 201 + `Set-Cookie`
-- **Debugged a 500 on the register happy-path test:** Postgres rejected the insert because `users.full_name` had a `NOT NULL` constraint and the route doesn't supply it. Made `full_name` nullable in the Supabase dashboard. All 4 tests now pass.
-- All auth changes are working but **uncommitted** — `src/index.ts`, `src/routes/auth.ts`, `src/tests/auth.test.ts`, `TODO.md` (plus the same `TODO.md` change in `flowlist-client`, and the earlier `AGENTS.md` / `README.md` v2 framing edits in the client)
+- Walked through `POST /api/auth/register` line-by-line — every piece now makes sense (parameterized queries, `RETURNING`, `result.rows[0]`, `httpOnly`, why we hash, why 201, what `next(error)` does, etc.). Confident enough to teach it back.
+- **Refactored `/register`** into three small same-file helpers — `validateRegistration`, `createUser`, `createSession`. The route handler is now ~10 lines of orchestration that reads top-to-bottom.
+  - Replaced the awkward `NOW() + ($2 || ' days')::interval` SQL with a JS-computed `expiresAt` `Date` passed as a normal parameter — much cleaner.
+  - Fixed two bugs the refactor surfaced: a typo (`!\n==` instead of `!==`) in the password type check, and a missing `return` in `createSession`. Both caught by the existing test suite.
+  - Committed as `refactor(auth): extract register helpers and fix validation typo` and pushed.
+- Postman smoke test of `/register` — confirmed 201, `user` body, `Set-Cookie` header. Skipped saving to a Postman collection — Vitest already covers it; not worth fighting Postman's UI for.
+- **Built `POST /api/auth/login`** end-to-end:
+  - Reused `validateRegistration` for input validation (payoff from yesterday's refactor — same shape as register).
+  - New helper `findUserByEmail` for the lookup; returns the row including `password_hash`.
+  - `bcrypt.compare` to check submitted password against the stored hash.
+  - **No-leak error:** identical `401 'invalid credentials'` for both "no such user" and "wrong password" — prevents user enumeration.
+  - `password_hash` stripped from the response body via `const { password_hash, ...userSafe } = user`.
+  - Reused `createSession` and the `sid` cookie pattern from register.
+- Added 3 login tests (wrong password → 401, non-existent email → 401, happy path → 200 + `Set-Cookie`). All 7 tests in `auth.test.ts` green.
+- Walked through every line of those 3 tests — `it`, `request(app)`, `.send`, `toBe` vs `toEqual` vs `toMatchObject`, why `afterEach` matters, the arrange/act/assert pattern.
 
-**Tomorrow (Tuesday, May 5) — clear plan**
+**Uncommitted at end of day:** the login route + login tests in `src/routes/auth.ts` and `src/tests/auth.test.ts`. First thing tomorrow: commit + push (see Step 1 below).
 
-**Goal of the day:** first, actually understand the register route I wrote yesterday. Then finish the v2 backend auth loop (login + logout) so all four routes — register, login, me, logout — are green in Vitest and verified in Postman. Frontend is a stretch, only if there's time after backend is done.
+**Tomorrow (Wednesday, May 6) — clear plan**
 
-**Definition of done for tomorrow:** end-to-end test passes (register → login → `/me` → logout → `/me` returns 401), all changes committed and pushed on `flowlist-v2`.
+**Goal of the day:** finish the v2 backend auth loop. Add `POST /api/auth/logout` so all four routes (register, login, me, logout) are green in Vitest, then add an end-to-end test that walks register → `/me` → logout → `/me`-returns-401 to prove the whole loop fits together.
 
----
-
-**Step 1 — Understand the `POST /api/auth/register` route line-by-line (~30 min, learning-first)**
-
-**Why this is first:** login and logout are going to be variations on register. If I don't actually understand register yet, I'll be copy-pasting patterns I don't grasp, and any bug tomorrow will be confusing instead of fixable. Spending 30 minutes here saves an hour of being stuck later.
-
-Open `src/routes/auth.ts` and the register handler. With the AI agent in teach mode, walk through it line by line. By the end, be able to say *out loud, in my own words*, what each of the following pieces does and why:
-
-- `router.post('/register', async (req, res, next) => { ... })` — what does `router.post` actually register? Why is the full URL `/api/auth/register` even though the string here is just `/register`?
-- The handler signature `async (req, res, next)` — what does each of the three parameters represent? Why is the function `async`?
-- `try { ... } catch (error) { return next(error); }` — what does `next(error)` do, and why wrap the whole body in `try/catch`?
-- `const { email, password } = req.body ?? {}` — what is `??` (the nullish coalescing operator), and why default to `{}` instead of just destructuring `req.body` directly?
-- The two validation checks — why is the `typeof` check separate from the `@` check? Why return early with 400 instead of throwing?
-- `await bcrypt.hash(password, 10)` — what is hashing? How is it different from encryption? What does the `10` mean (salt rounds / cost factor)? Why do we never store the plaintext password?
-- `email.toLowerCase()` — why normalize before insert?
-- The first `db.query` with `$1, $2` placeholders — why parameterized queries instead of string interpolation? (The answer involves SQL injection.) What does the `RETURNING` clause give back?
-- `userResult.rows[0]` — what shape does the `pg` library return from a query?
-- The second `db.query` inserting into `sessions` — what is `NOW() + ($2 || ' days')::interval` actually doing, and why is it written that way instead of computing a `Date` in JavaScript and passing it in?
-- `res.cookie('sid', sessionId, { httpOnly: true })` — what is `httpOnly` and why does it matter for an auth cookie? What would change if we left it off?
-- `return res.status(201).json({ user })` — why 201 instead of 200? Notice what's *not* in the response (no `password_hash`, no `sessionId`) — why are those omitted on purpose?
-
-When all of those make sense, write a short note in `day2-reference.md` (3–5 bullets) summarizing what register does in plain English. That note becomes the mental template for login and logout.
+**Definition of done for tomorrow:** all four auth routes implemented and tested, end-to-end test passing, all changes committed and pushed on `flowlist-v2`. If travel eats into the day, ship in priority order — logout-route → logout-tests → end-to-end → Postman — and drop from the bottom.
 
 ---
 
-**Step 2 — Clean up before writing anything new (~10 min)**
+**Step 1 — Commit Tuesday's login work (~5 min)**
 
-1. `cd flowlist-api`, run `npm test` — confirm all 4 tests still pass (sanity check after sleep).
-2. Commit today's work in small, focused commits on `flowlist-v2`:
-   - `feat(auth): POST /api/auth/register with bcrypt + session cookie`
-   - `test(auth): register validation + happy path`
-   - `chore(db): make users.full_name nullable` *(Supabase change has no file to commit, but mention in the commit body of the feat above OR add a note in `day2-reference.md`)*
-   - `docs(todo): May 4 wrap-up + tomorrow plan`
-3. In `flowlist-client`: commit the uncommitted `AGENTS.md`, `README.md`, and `TODO.md` updates.
-   - `docs(agents,readme): reframe for v2 auth phase`
-   - `docs(todo): sync from API repo`
-4. Push both branches.
+If not done at end of day Tuesday:
+- `feat(auth): POST /api/auth/login with bcrypt.compare + session cookie`
+- `test(auth): login wrong password, no such user, happy path`
+
+Push.
 
 ---
 
-**Step 3 — Verify register in Postman (~10 min)**
-
-1. Run the API: `npm run dev`
-2. In Postman: `POST http://localhost:3000/api/auth/register` with body `{ "email": "kanami+postman@example.com", "password": "test1234" }`
-3. Confirm: 201 status, `user` object in body, `Set-Cookie: sid=...` in response headers
-4. Save the request to a Postman collection so login + logout are easy to test next.
-
----
-
-**Step 4 — Build `POST /api/auth/login` (~30–45 min, learning-first)**
-
-Before writing code, talk through (with the AI agent or to yourself):
-- What does login need to do that register doesn't? *(Look up an existing user, compare passwords.)*
-- Why use `bcrypt.compare` instead of comparing strings? *(Never store or compare plain-text passwords.)*
-- What's the same as register? *(Creating a session row, setting the `sid` cookie.)*
-
-Then write it:
-1. In `src/routes/auth.ts`, add `router.post('/login', …)`.
-2. Validate `email` and `password` are strings (same shape as register).
-3. `SELECT id, email, role, password_hash FROM users WHERE email = $1` — handle the not-found case with 401 ("invalid credentials").
-4. `bcrypt.compare(password, user.password_hash)` — handle false with 401 ("invalid credentials"). *Same generic error message for "user not found" and "wrong password" — don't leak which one it was.*
-5. Insert a `sessions` row, set the `sid` cookie, return `{ user }` with 200.
-
-Then add tests in `src/tests/auth.test.ts`:
-- Login with wrong password → 401
-- Login with non-existent email → 401
-- Login with valid input → 200 + `Set-Cookie`
-
-Verify in Postman.
-
----
-
-**Step 5 — Build `POST /api/auth/logout` (~20–30 min)**
+**Step 2 — Build `POST /api/auth/logout` (~20–30 min, learning-first)**
 
 Before writing code, talk through:
-- Where does the `sid` come from? *(The cookie on the request — `req.cookies.sid`.)*
-- What does "logout" actually do? *(Delete the row in the `sessions` table so the cookie is no longer valid, then clear it from the browser.)*
+- Where does the session id come from? *(`req.cookies.sid` — the cookie that was set during register/login.)*
+- What does logout actually do on the server? *(Delete the session row so the cookie can no longer be redeemed.)*
+- What if there's no cookie on the request? *(No-op success — logging out when not logged in isn't an error. Return 200.)*
+- Why also `res.clearCookie`? *(So the browser stops sending a stale cookie on future requests.)*
 
-Then write it:
-1. `router.post('/logout', …)`.
-2. Read `req.cookies.sid`. If missing, still return 200 — logging out when not logged in is a no-op, not an error.
-3. `DELETE FROM sessions WHERE id = $1`.
-4. `res.clearCookie('sid')`.
-5. Return 200 with `{ ok: true }`.
-
-Tests:
-- Logout without a cookie → 200 (no-op)
-- Logout after login → 200, and a follow-up `GET /me` with the cleared cookie returns 401
-
-Verify in Postman.
+Then write it (right after `router.post('/login', ...)` in `src/routes/auth.ts`, with `try/catch` like the others):
+1. Read `req.cookies?.sid`. If missing, return 200 with `{ ok: true }`.
+2. `DELETE FROM sessions WHERE id = $1` — fine if no row matches.
+3. `res.clearCookie('sid', { path: '/' })`.
+4. Return 200 with `{ ok: true }`.
 
 ---
 
-**Step 6 — End-to-end test (~15 min)**
+**Step 3 — Logout tests (~10 min)**
 
-In `src/tests/auth.test.ts`, add one test that walks the full loop using a single supertest agent so cookies persist between calls:
+Two tests in `src/tests/auth.test.ts`:
+- Logout with no cookie → 200 (no-op).
+- Register → logout → `GET /api/auth/me` returns 401 (proves the session was actually deleted server-side, not just the cookie cleared).
+
+For the second test, use supertest's **agent** to carry cookies between calls:
 
 ```
 const agent = request.agent(app);
-await agent.post('/api/auth/register').send({...});  // 201
-const meAfterRegister = await agent.get('/api/auth/me');  // 200, returns user
-await agent.post('/api/auth/logout');  // 200
-const meAfterLogout = await agent.get('/api/auth/me');  // 401
+await agent.post('/api/auth/register').send({ email: testEmail, password: 'password123' });
+await agent.post('/api/auth/logout');
+const me = await agent.get('/api/auth/me');
+expect(me.status).toBe(401);
 ```
 
-Or, more thorough: register → logout → login → `/me` → logout → `/me` 401.
+Plain `request(app)` does *not* carry cookies between calls; `request.agent(app)` does. That's the key difference.
 
 ---
 
-**Step 7 — Stop and commit (~10 min)**
+**Step 4 — End-to-end test (~10 min)**
 
-1. Run `npm test` — all green.
-2. Postman a final manual smoke test of the full loop.
-3. Commit:
-   - `feat(auth): POST /api/auth/login`
-   - `feat(auth): POST /api/auth/logout`
-   - `test(auth): end-to-end auth flow`
-4. Push.
-5. **STOP.** Do not start the frontend tonight unless you genuinely have an hour of fresh focus left. Tomorrow-Wednesday belongs to the v2 frontend.
+One test that walks the full loop in a single agent:
+- Register → 201
+- `GET /me` → 200, returns the user
+- Logout → 200
+- `GET /me` again → 401
+
+When this passes, the v2 backend is done.
 
 ---
 
-**If energy is left over (optional, in this order):**
+**Step 5 — Postman smoke test of /login + /logout (~5 min, optional)**
 
-- Wire `full_name` into register and the response (small detour, satisfying loose end)
-- Start the register form in `flowlist-client/src/App.tsx` — just the form, no styling
-- Cross out the matching items in this TODO
+Skip if travel is eating the day. Vitest covers everything; this is muscle memory only.
+
+---
+
+**Step 6 — Final commits + push (~5 min)**
+
+```
+feat(auth): POST /api/auth/logout
+test(auth): logout no-cookie + logout-clears-session
+test(auth): end-to-end register → me → logout → me-401
+```
+
+Then **STOP**. Frontend auth UI is still ahead, but the v2 backend is done. Pick up the frontend after travel with fresh focus.
+
+---
+
+**If energy is left over (optional, in priority order):**
+
+- Wire `full_name` into register: accept it from `req.body`, include it in the INSERT, return it in the user object. Small known loose end — column already exists nullable.
+- Start the register form in `flowlist-client/src/App.tsx` — just inputs + a submit button calling `fetch('/api/auth/register', { method: 'POST', credentials: 'include', ... })`. No styling.
+- Tighten the login happy-path test by asserting `password_hash` is *not* in the response body (closes a small coverage gap).
 
 **If something blocks you:**
 
-- Check `day2-reference.md` for the original walkthrough
-- Read the test failure message carefully (today's `full_name` debug is the template — Postgres tells you exactly what's wrong if you read the error)
-- Don't change unrelated code while debugging
+- Read the failure message carefully. Postgres errors usually name the exact column or constraint (the May 4 `full_name` debug is the template).
+- Don't change unrelated code while debugging.
+- Logout is the simplest of the three routes — if it breaks, it's almost certainly cookie reading or DELETE syntax, not anything subtle.
 
 ---
 
@@ -238,9 +205,9 @@ Or, more thorough: register → logout → login → `/me` → logout → `/me` 
 - [x] Mount the auth router at `/api/auth` and explain route prefixes
 - [x] Build `POST /api/auth/register` slowly: validate input, hash password, insert user, create session, set `sid` cookie
 - [x] Add `GET /api/auth/me` with `requireSession` and explain cookies → sessions → `res.locals.user`
-- [ ] Add `POST /api/auth/login` and explain password comparison
+- [x] Add `POST /api/auth/login` and explain password comparison (`bcrypt.compare`, no-leak error message, `password_hash` strip via destructure)
 - [ ] Add `POST /api/auth/logout` and explain deleting server-side sessions plus clearing the browser cookie
-- [ ] Verify each backend route in Postman before touching the frontend (register tested in Vitest, still owes Postman pass)
+- [ ] Verify each backend route in Postman before touching the frontend (register Postman'd; login + logout still owe a Postman pass)
 - [ ] Add frontend auth UI only after the backend auth loop is understandable
 
 ### Backend setup
@@ -250,8 +217,8 @@ Or, more thorough: register → logout → login → `/me` → logout → `/me` 
 
 ### Backend routes
 
-- [x] `POST /api/auth/register` — hash password (bcrypt), insert user, create session row, set `sid` cookie
-- [ ] `POST /api/auth/login` — verify password, create session row, set `sid` cookie
+- [x] `POST /api/auth/register` — hash password (bcrypt), insert user, create session row, set `sid` cookie *(refactored into `validateRegistration` + `createUser` + `createSession` helpers)*
+- [x] `POST /api/auth/login` — verify password (`bcrypt.compare`), create session row, set `sid` cookie. No-leak `401 'invalid credentials'` for both wrong-password and no-such-user. `password_hash` stripped from response body.
 - [ ] `POST /api/auth/logout` — delete session row, clear cookie
 - [x] `GET /api/auth/me` — return current user from session, or 401 if no session
 - [x] ~~Update CORS to allow credentials~~ — skipped, using the Vite proxy so auth requests stay same-origin in dev
@@ -275,10 +242,12 @@ Or, more thorough: register → logout → login → `/me` → logout → `/me` 
 - [x] Register: missing fields → 400
 - [x] Register: invalid email → 400
 - [x] Register: valid input → 201 + `Set-Cookie`
-- [ ] Login: wrong password → 401
-- [ ] Login: valid input → 200 + `Set-Cookie`
-- [ ] Logout: clears cookie and deletes session row
-- [ ] End-to-end: register → login → `/me` returns user → logout → `/me` returns 401
+- [x] Login: wrong password → 401
+- [x] Login: non-existent email → 401 (same response as wrong password — no enumeration leak)
+- [x] Login: valid input → 200 + `Set-Cookie`
+- [ ] Logout: no cookie → 200 (no-op)
+- [ ] Logout: clears cookie and deletes session row server-side (verified via follow-up `/me` returning 401)
+- [ ] End-to-end: register → `/me` returns user → logout → `/me` returns 401
 
 ### Demo v2
 
