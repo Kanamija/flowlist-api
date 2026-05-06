@@ -115,4 +115,11 @@ describe('auth routes', () => {
     expect(response.headers['set-cookie']).toBeDefined();
 });
 
+  it('returns 200 from /api/auth/logout when there is no session cookie', async () => {
+    const response = await request(app).post('/api/auth/logout');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ok: true });
+});
+
 });

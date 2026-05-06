@@ -94,7 +94,21 @@ async function createSession(userId: string) {
     }
   });
 
+  router.post('/logout', async (req:Request, res: Response, next: NextFunction) => {
+    try {
+      const sid = req.cookies?.sid;
+      if (!sid) {
+        return res.status(200).json({ ok: true });
+      }
 
+      await db.query(`DELETE FROM sessions WHERE id = $1`, [sid]);
+      res.clearCookie('sid', { path: '/'});
+    
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      return next(error);
+    }
+  })
 
 router.get('/me', requireSession, (req: Request, res: Response) => {
     return res.status(200).json({ user: res.locals.user });
