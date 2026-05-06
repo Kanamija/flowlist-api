@@ -61,5 +61,58 @@ describe('auth routes', () => {
         expect(response.headers['set-cookie']).toBeDefined();
   });
 
+    it('returns 401 from /api/auth/login when password is wrong', async () => {
+    await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: testEmail,
+        password: 'password123',
+      });
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: testEmail,
+        password: 'wrong-password',
+      });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: 'invalid credentials' });
+    });
+
+    it('returns 401 from /api/auth/login when email does not exist', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'never-registered@example.com',
+        password: 'password123',
+      });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: 'invalid credentials' });
+    });
+
+    it('logs in an existing user and sets a session cookie', async () => {
+    await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: testEmail,
+        password: 'password123',
+      });
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: testEmail,
+        password: 'password123',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user).toMatchObject({
+      email: testEmail,
+      role: 'student',
+    });
+    expect(response.headers['set-cookie']).toBeDefined();
+});
 
 });
