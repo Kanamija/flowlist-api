@@ -4,7 +4,7 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 
 ## Status
 
-**Today:** Wednesday, May 6, 2026
+**Today:** Thursday, May 7, 2026
 **MVP target:** ~Saturday, May 9, 2026
 **Travel:** mid-week, 2–3 working days lost. Plan accordingly — front-load v1 this weekend, push v2 immediately after, save the demo polish for the end of the week.
 
@@ -54,91 +54,79 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 
 ---
 
-**Tomorrow — clear plan**
+### Morning session — Thursday, May 7
 
-**Goal of the next session:** finish the v2 frontend loop. Form currently does nothing on submit; teach it to actually register a user, then add the logout button, then test the full loop in the browser. **Walk through the existing form code line-by-line first** — most of it was pasted at the end of today and is not yet understood. Understanding before wiring.
+**Done:**
+- **Walked through the entire register form code line-by-line** — controlled input pattern, `e.preventDefault()`, the ternary vs `&&` conditional render flavors, `type="submit"` and how the button triggers `onSubmit` via the browser's native form submit behavior, React's synthetic event system, `registerError` state and when it becomes truthy.
+- **Wired `handleRegisterSubmit`** — replaced the `(e) => e.preventDefault()` stub with a real named async function. Handler calls `e.preventDefault()`, clears stale error, fetches `POST /api/auth/register` with `credentials: 'include'` and `Content-Type: application/json`, calls `setUser(data.user)` on 201 or `setRegisterError(data.error)` on failure.
+- **Added logout button** — `handleLogout` fetches `POST /api/auth/logout` with `credentials: 'include'` then calls `setUser(null)`. Button sits next to the "Logged in as X" indicator in the truthy branch of the ternary.
+- **Browser tested the full loop** — registered a new email, indicator flipped to "Logged in as ...", refreshed and stayed logged in, clicked logout and indicator flipped back to form. v2 frontend demo complete.
 
-**Definition of done for tomorrow:** register a brand new email through the React UI, see "Not logged in" flip to "Logged in as kanami@example.com", refresh the page and stay logged in, click logout, watch the indicator flip back to the form. That demo passing = v2 frontend done (minus the login form, which is a stretch).
-
----
-
-**Step 1 — Walk through the existing register form code line-by-line (~20-30 min, learning-first)**
-
-Before changing anything, slow read the entire `<form>...</form>` block in `App.tsx`. Unpack each concept:
-- The **controlled input pattern** — what `value={email}` does, what `onChange={(e) => setEmail(e.target.value)}` does, why React state owns the input value (round-trip: type → onChange → setEmail → re-render → value).
-- **`e.preventDefault()`** — what default form submission does in HTML (page reload, query string), why we always call this in React form handlers.
-- **Arrow function syntax** — `(e) => setEmail(e.target.value)` and what `e.target.value` actually points at.
-- **Two flavors of conditional render**: the ternary `{user ? <X/> : <Y/>}` (this OR that) and the `&&` form `{registerError && <p>...</p>}` (this OR nothing). When to use each.
-- **HTML attributes**: `type="email"`, `type="password"`, `placeholder`, `required`. Any of these are unfamiliar, ask.
-
-Do not write any new code in this step. The goal is to be able to point at every character in the form block and say what it's for.
+**Still uncommitted** — all frontend changes in `flowlist-client/src/App.tsx`. First thing this afternoon: commit + push.
 
 ---
 
-**Step 2 — Wire the submit handler to actually register (~15-20 min)**
+**Afternoon — clear plan**
 
-Replace the inline `(e) => e.preventDefault()` with a real handler. Either an inline arrow function in the `onSubmit` attribute or a named `async function handleRegisterSubmit(...)` defined inside `App()` — pick whichever feels cleaner once you've seen both shapes.
-
-The handler should:
-1. Call `e.preventDefault()` (still the first line).
-2. Clear any stale error: `setRegisterError("")`.
-3. `await fetch('/api/auth/register', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })`.
-4. On 201 (`res.ok`): `const data = await res.json(); setUser(data.user);`. The "Logged in as X" branch of the ternary takes over and the form unmounts. **This is the win moment** — refresh the page and the indicator should still be there.
-5. On non-201: `const data = await res.json(); setRegisterError(data.error);`. The `{registerError && <p>...</p>}` slot lights up.
-
-Two new pieces to understand here that didn't come up tonight:
-- **`Content-Type: application/json` header** — tells the server "the body I'm sending is JSON, parse it accordingly." Without this, `req.body` on the server side is empty.
-- **`JSON.stringify(...)`** — turns the JS `{ email, password }` object into the JSON string the server expects. The server's `express.json()` middleware reverses it back into an object on arrival.
+**Goal:** commit the morning's work, then add the login form so users who already have an account can sign in.
 
 ---
 
-**Step 3 — Add the logout button (~5-10 min)**
+**Step 1 — Commit + push (~5 min)**
 
-Right next to the "Logged in as X" line in the truthy branch of the ternary, add a button. `onClick` calls `fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })`, awaits it, then calls `setUser(null)`. Indicator flips back to the form. No error handling needed — logout always succeeds (already proved that backend-side).
-
----
-
-**Step 4 — Browser test the full loop (~10 min)**
-
-`npm run dev` in both repos. Open the React app. Register a brand new email + password. Indicator flips to "Logged in as ...". Refresh — still logged in (this is the moment that proves `/me`-on-mount is doing its job). Click logout — back to form. Try registering the same email again — should see the error appear under the form (proves the error-state wiring works).
-
-When this passes, mark the v2 demo checkboxes in the TODO and you're done with v2 minus the login form.
+```
+feat(client): /me-on-mount + auth-aware page header
+feat(client): register form wired end-to-end with error handling
+feat(client): logout button
+```
 
 ---
 
-**Step 5 — Path B: wire `full_name` end-to-end (~20-30 min, only if step 4 lands cleanly)**
+**Step 2 — Merge `flowlist-v2` into `main` (~5 min)**
 
-This is the polish pass that makes the page *actually* feel different on login. The TODO's v2 polish entry has the steps; column already exists on `users` (nullable), so no schema change.
+v2 demo passed all three checks — this is the right moment to merge. Do this in the terminal for both repos:
 
-Backend (`flowlist-api/src/routes/auth.ts`):
-- Update `validateRegistration` to accept an optional `full_name` from `req.body` (don't make it required — keeps existing tests green).
-- Include `full_name` in the INSERT in `createUser`. Add it to the `RETURNING` list so the user object includes it.
-- Update the `findUserByEmail` SELECT to include `full_name` so login also returns it.
-- (Optional) Add a small register test that supplies `full_name` and asserts it comes back in the response.
+```bash
+git checkout main
+git merge flowlist-v2
+git push
+```
 
-Frontend (`flowlist-client/src/App.tsx`):
-- Add `full_name` to the `User` type.
-- Add a `<input>` for full name to the register form (state, controlled input, included in the body).
-- Update the indicator from `Logged in as {user.email}` to `Hi {user.full_name || user.email}!` so old users without a name still see something sensible.
+Repeat in both `flowlist-api` and `flowlist-client`. After merging, you can keep working on the login form on `main` directly, or create a `flowlist-v3` branch — your call when you get there.
 
 ---
 
-**Step 6 — Commit + push (~5 min)**
+**Step 3 — Add the login form (~20-30 min, learning-first)**
 
-Suggested commits:
-- `feat(client): /me-on-mount + auth-aware page header`
-- `feat(client): register form wired end-to-end with error handling`
-- `feat(client): logout button`
-- `feat(auth): collect full_name in /register and greet by name` *(if step 5 done)*
+The login form is near-identical to the register form in structure — same controlled inputs, same `onSubmit` pattern. The differences are small:
+- Calls `POST /api/auth/login` instead of `/register`
+- Expects 200 instead of 201 on success
+- Error message slot is `loginError` instead of `registerError`
 
----
+Before writing code, think through how to show two forms — register and login — without always showing both at once. Options:
+- A toggle: a `showLogin` boolean state, a "Already have an account? Log in" link that flips it
+- Two separate routes (too early for a router — keep it simple)
 
-**Stretch (only if everything above lands and there's energy left):** start the login form in `App.tsx`. Near-identical to register — same JSX shape, same controlled-input pattern, just calls `/api/auth/login` instead. About 15 minutes once register is understood.
+The toggle approach is the right call at this scale. Add `const [showLogin, setShowLogin] = useState(false)` and render either the register form or the login form based on that flag, with a small link to switch between them.
+
+New state needed:
+- `loginError` — same pattern as `registerError`
+- `showLogin` — boolean toggle
+
+New handler needed:
+- `handleLoginSubmit` — same shape as `handleRegisterSubmit`, just different URL and status check
+
+**Step 3 — Browser test login (~10 min)**
+
+Log out if logged in. Switch to the login form. Log in with an existing account. Indicator flips. Refresh — still logged in. Logout — back to form.
+
+**Step 4 — Test the duplicate email error (~5 min)**
+
+Switch to register form. Try registering an email that already exists. The `registerError` slot should light up with the server's error message.
 
 **If something blocks you:**
-- Form submit "doing nothing" silently is almost always missing `Content-Type: application/json` or missing `JSON.stringify` — server sees an empty body and 400s, but if your error handling is broken too, it looks like nothing happened. Open the browser Network tab; the request and its response status will tell you immediately.
-- "Logged in as ..." not appearing after a successful register means `setUser(data.user)` isn't firing. Check `res.ok` and the response body shape (`data.user`, not `data`).
-- Refreshing logs you out unexpectedly = the cookie isn't being sent on `/me`. Confirm `credentials: 'include'` on the `/me` fetch.
+- Login returning 401 unexpectedly — check that `findUserByEmail` in the backend is selecting `password_hash` (needed for `bcrypt.compare`).
+- Form not switching between register/login — check the `showLogin` toggle and that both forms are in the right branch of the conditional.
 
 ---
 
@@ -238,12 +226,12 @@ Suggested commits:
 
 ### Frontend
 
-- [ ] Register form (email + password)
+- [x] Register form (email + password)
 - [ ] Login form (email + password)
-- [ ] Use `fetch(url, { credentials: "include" })` on all auth-relevant calls
-- [ ] On app mount, call `GET /api/auth/me` to determine logged-in state
-- [ ] "Logged in as X" header indicator (with email or name)
-- [ ] Logout button that calls `POST /api/auth/logout` and clears local auth state
+- [x] Use `fetch(url, { credentials: "include" })` on all auth-relevant calls
+- [x] On app mount, call `GET /api/auth/me` to determine logged-in state
+- [x] "Logged in as X" header indicator (with email or name)
+- [x] Logout button that calls `POST /api/auth/logout` and clears local auth state
 
 ### v2 polish (after core auth works)
 
@@ -264,10 +252,10 @@ Suggested commits:
 
 ### Demo v2
 
-- [ ] Register a new account through the UI
-- [ ] Refresh the page — still logged in
-- [ ] Log out — indicator updates
-- [ ] **STOP. Do not start v3 until this checks pass.**
+- [x] Register a new account through the UI
+- [x] Refresh the page — still logged in
+- [x] Log out — indicator updates
+- [x] **STOP. Do not start v3 until this checks pass.**
 
 ---
 
