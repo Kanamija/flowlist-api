@@ -122,4 +122,35 @@ describe('auth routes', () => {
     expect(response.body).toEqual({ ok: true });
 });
 
+  it('deletes the session so /me returns 401 after logout', async () => {
+    const agent = request.agent(app);
+
+    await agent
+      .post('/api/auth/register')
+      .send({ email: testEmail, password: 'password123' });
+
+    await agent.post('/api/auth/logout');
+
+    const response = await agent.get('/api/auth/me');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: 'not authenticated' });
+});
+
+  it('supports a full register → /me → logout → /me round-trip', async () => {
+    const agent = request.agent(app);
+
+    await agent
+      .post('/api/auth/register')
+      .send({ email: testEmail, password: 'password123' });
+
+    const meBefore = await agent.get('/api/auth/me');
+    expect(meBefore.status).toBe(200);
+
+    await agent.post('/api/auth/logout');
+
+    const meAfter = await agent.get('/api/auth/me');
+    expect(meAfter.status).toBe(401);
+});
+
 });
