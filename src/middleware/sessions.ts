@@ -1,5 +1,3 @@
-// NOTE: not imported anywhere yet. Used in v2 when auth routes are added.
-// See FlowList-MVP-Planning.docx for the staged plan.
 
 import { Request, Response, NextFunction } from 'express';
 import db from '../config/db.ts';

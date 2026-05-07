@@ -1,12 +1,16 @@
 import express from 'express';
 import { Request, Response, NextFunction } from 'express';
 import db from './config/db.ts';
+import cookieParser from 'cookie-parser';
+import authRouter from './routes/auth.ts';
+
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true}));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Health check — tests that the DB connection works
 
@@ -45,7 +49,7 @@ app.get('/api/classes', async (req, res, next) => {
     );
     return res.status(200).json({ classes: result.rows });
   } catch (error) {
-    return next(error)
+    return next(error);
   }
 });
 
@@ -68,6 +72,8 @@ app.get('/api/classes/:id', async (req, res, next) => {
   }
 })
 
+app.use('/api/auth', authRouter);
+
 // catch-all 404
 app.use((req, res) => res.status(404).send('This is not the page you\'re looking for...'));
 
@@ -83,9 +89,11 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   return res.status(errorObj.status).json(errorObj.message);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port: ${PORT}...`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server listening on port: ${PORT}...`);
+  });
+}
 
 export default app;
 
