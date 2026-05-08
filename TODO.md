@@ -66,67 +66,14 @@ Single source of truth for what's left on FlowList. Covers both repos. Keep this
 
 ---
 
-**Afternoon — clear plan**
+### Evening session — Thursday, May 7
 
-**Goal:** commit the morning's work, then add the login form so users who already have an account can sign in.
-
----
-
-**Step 1 — Commit + push (~5 min)**
-
-```
-feat(client): /me-on-mount + auth-aware page header
-feat(client): register form wired end-to-end with error handling
-feat(client): logout button
-```
-
----
-
-**Step 2 — Merge `flowlist-v2` into `main` (~5 min)**
-
-v2 demo passed all three checks — this is the right moment to merge. Do this in the terminal for both repos:
-
-```bash
-git checkout main
-git merge flowlist-v2
-git push
-```
-
-Repeat in both `flowlist-api` and `flowlist-client`. After merging, you can keep working on the login form on `main` directly, or create a `flowlist-v3` branch — your call when you get there.
-
----
-
-**Step 3 — Add the login form (~20-30 min, learning-first)**
-
-The login form is near-identical to the register form in structure — same controlled inputs, same `onSubmit` pattern. The differences are small:
-- Calls `POST /api/auth/login` instead of `/register`
-- Expects 200 instead of 201 on success
-- Error message slot is `loginError` instead of `registerError`
-
-Before writing code, think through how to show two forms — register and login — without always showing both at once. Options:
-- A toggle: a `showLogin` boolean state, a "Already have an account? Log in" link that flips it
-- Two separate routes (too early for a router — keep it simple)
-
-The toggle approach is the right call at this scale. Add `const [showLogin, setShowLogin] = useState(false)` and render either the register form or the login form based on that flag, with a small link to switch between them.
-
-New state needed:
-- `loginError` — same pattern as `registerError`
-- `showLogin` — boolean toggle
-
-New handler needed:
-- `handleLoginSubmit` — same shape as `handleRegisterSubmit`, just different URL and status check
-
-**Step 3 — Browser test login (~10 min)**
-
-Log out if logged in. Switch to the login form. Log in with an existing account. Indicator flips. Refresh — still logged in. Logout — back to form.
-
-**Step 4 — Test the duplicate email error (~5 min)**
-
-Switch to register form. Try registering an email that already exists. The `registerError` slot should light up with the server's error message.
-
-**If something blocks you:**
-- Login returning 401 unexpectedly — check that `findUserByEmail` in the backend is selecting `password_hash` (needed for `bcrypt.compare`).
-- Form not switching between register/login — check the `showLogin` toggle and that both forms are in the right branch of the conditional.
+**Done:**
+- **Merged `flowlist-v2` into `main`** in both repos — clean merge, no conflicts.
+- **Duplicate email error handled properly** in `POST /api/auth/register` — added a `findUserByEmail` check before the INSERT so duplicate emails return a clean `400` instead of leaking a raw Postgres constraint error.
+- **Login form shipped on the frontend** — toggle between register and login working end-to-end, browser tested.
+- **Full UI styling pass** on the frontend — Cormorant Garamond + Jost fonts, auth form styling, class card layout improvements, ngrok set up for presentation day.
+- **Still on `flowlist-v2`** — final merge to `main` planned for end of Saturday session.
 
 ---
 
@@ -227,7 +174,7 @@ Switch to register form. Try registering an email that already exists. The `regi
 ### Frontend
 
 - [x] Register form (email + password)
-- [ ] Login form (email + password)
+- [x] Login form (email + password) — toggle between register and login with `showLogin` state
 - [x] Use `fetch(url, { credentials: "include" })` on all auth-relevant calls
 - [x] On app mount, call `GET /api/auth/me` to determine logged-in state
 - [x] "Logged in as X" header indicator (with email or name)
@@ -307,7 +254,7 @@ Small additions that fit in a few hours each. Anything bigger lives in `PROJECT_
 - [ ] Format duration nicely ("60 min" instead of `60`)
 - [ ] Show "X spots left" on each class card (uses whatever `spots_remaining` strategy you chose)
 - [ ] Show "✓ Booked" inline on the schedule for classes the current user already booked
-- [ ] CSS pass — typography, spacing, color palette that fits a yoga studio
+- [x] CSS pass — typography, spacing, color palette that fits a yoga studio
 - [ ] Simple footer with studio name and "Powered by FlowList"
 - [ ] Friendly 404 / not-found state in the React app
 - [ ] Filter classes by instructor (only if the seeded data has enough variety to make it interesting)

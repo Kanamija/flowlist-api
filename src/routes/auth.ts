@@ -55,6 +55,11 @@ async function createSession(userId: string) {
       if ('error' in validated) {
         return res.status(400).json({ error: validated.error });
       }
+      
+      const existingUser = await findUserByEmail(validated.email);
+      if (existingUser) {
+        return res.status(401).json({ error: 'an account with that email already exists' });
+      }
 
       const user = await createUser(validated.email, validated.password);
       const sessionId = await createSession(user.id);
