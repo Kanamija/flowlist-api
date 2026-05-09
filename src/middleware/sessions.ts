@@ -25,7 +25,8 @@ export async function requireSession(req: Request, res: Response, next: NextFunc
             users.id AS user_id,
             users.email AS user_email,
             users.role AS user_role,
-            users.created_at AS user_created_at
+            users.created_at AS user_created_at,
+            users.full_name AS full_name
         FROM sessions
         JOIN users ON users.id = sessions.user_id
         WHERE sessions.id = $1
@@ -45,6 +46,7 @@ export async function requireSession(req: Request, res: Response, next: NextFunc
         email: row.user_email,
         role: row.user_role,
         created_at: row.user_created_at,
+        full_name: row.full_name,
     };
     res.locals.sessionId = row.session_id;
 
