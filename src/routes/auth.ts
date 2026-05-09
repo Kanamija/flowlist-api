@@ -18,20 +18,20 @@ function validateRegistration(body: any) {
     return { email: email.toLowerCase(), password};
   }
 
-async function createUser(email: string, password: string) {
+async function createUser(email: string, password: string, full_name: string | null) {
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await db.query(
-      `INSERT INTO users (email, password_hash)
-        VALUES ($1, $2)
-        RETURNING id, email, role, created_at`,
-        [email, passwordHash],
+      `INSERT INTO users (email, password_hash, full_name)
+        VALUES ($1, $2, $3)
+        RETURNING id, email, role, created_at, full_name`,
+        [email, passwordHash, full_name],
     );
     return result.rows[0];
   }
 
 async function findUserByEmail(email: string) {
     const result = await db.query(
-      `SELECT id, email, role, password_hash, created_at
+      `SELECT id, email, role, password_hash, created_at, full_name
         FROM users WHERE email = $1`,
         [email],
     );
@@ -55,8 +55,14 @@ async function createSession(userId: string) {
       if ('error' in validated) {
         return res.status(400).json({ error: validated.error });
       }
+      const full_name = req.body.full_name ?? null;
 
-      const user = await createUser(validated.email, validated.password);
+      const existingUser = await findUserByEmail(validated.email);
+      if (existingUser) {
+        return res.status(401).json({ error: 'an account with that email already exists' });
+      }
+
+      const user = await createUser(validated.email, validated.password, full_name);
       const sessionId = await createSession(user.id);
 
       res.cookie('sid', sessionId, { httpOnly: true });
